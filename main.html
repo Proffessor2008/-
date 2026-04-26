@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Нейронный Поток • Ultra</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/npm/fontsource-inter@5.0.0/300.css');
+        @import url('https://cdn.jsdelivr.net/npm/fontsource-inter@5.0.0/400.css');
+        @import url('https://cdn.jsdelivr.net/npm/fontsource-inter@5.0.0/500.css');
+        @import url('https://cdn.jsdelivr.net/npm/fontsource-inter@5.0.0/600.css');
+        @import url('https://cdn.jsdelivr.net/npm/fontsource-inter@5.0.0/700.css');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #020206;
+            --panel-bg: rgba(6, 6, 18, 0.94);
+            --panel-border: rgba(0, 245, 212, 0.12);
+            --primary: #00f5d4;
+            --secondary: #9d50ff;
+            --accent: #ff6b6b;
+            --text: #d8d8f0;
+            --text-dim: #666688;
+            --glow: 0 0 16px rgba(0, 245, 212, 0.35);
+            --radius: 6px;
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html, body {
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            font-family: 'Inter', system-ui, sans-serif;
+            color: var(--text);
+            font-size: 12px;
+        }
+
+        canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        .top-bar {
+            position: fixed; top: 0; left: 0; right: 0; height: 44px; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 14px;
+            background: linear-gradient(180deg, rgba(2,2,6,0.95) 0%, transparent 100%);
+            pointer-events: none;
+        }
+        .top-bar > * { pointer-events: auto; }
+        .logo-area { display: flex; align-items: center; gap: 8px; }
+        .logo-area h1 {
+            font-size: 0.85rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .logo-area .badge {
+            font-size: 0.55rem; color: var(--accent); background: rgba(255,107,107,0.15);
+            padding: 1px 5px; border-radius: 3px; font-weight: 600; letter-spacing: 1px;
+        }
+        .top-actions { display: flex; gap: 4px; }
+
+        .icon-btn {
+            width: 32px; height: 32px; border-radius: var(--radius);
+            border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+            color: var(--text); cursor: pointer; display: flex; align-items: center;
+            justify-content: center; font-size: 0.85rem; transition: all var(--transition);
+            backdrop-filter: blur(4px);
+        }
+        .icon-btn:hover { background: rgba(0,245,212,0.12); border-color: var(--primary); box-shadow: var(--glow); }
+        .icon-btn.active { background: rgba(0,245,212,0.18); border-color: var(--primary); }
+
+        .panel-toggle {
+            position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+            z-index: 200; width: 24px; height: 52px; border-radius: 6px 0 0 6px;
+            background: var(--panel-bg); border: 1px solid var(--panel-border); border-right: none;
+            color: var(--primary); cursor: pointer; display: flex; align-items: center;
+            justify-content: center; font-size: 0.7rem; transition: all var(--transition);
+            backdrop-filter: blur(8px); writing-mode: vertical-rl;
+            letter-spacing: 1px; font-weight: 600;
+        }
+        .panel-toggle:hover { width: 30px; background: rgba(0,245,212,0.1); }
+
+        .right-panel {
+            position: fixed; top: 0; right: 0; width: 320px; height: 100vh;
+            z-index: 150; background: var(--panel-bg); border-left: 1px solid var(--panel-border);
+            backdrop-filter: blur(14px); overflow-y: auto; overflow-x: hidden;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            scrollbar-width: thin; scrollbar-color: rgba(0,245,212,0.2) transparent;
+        }
+        .right-panel::-webkit-scrollbar { width: 4px; }
+        .right-panel::-webkit-scrollbar-track { background: transparent; }
+        .right-panel::-webkit-scrollbar-thumb { background: rgba(0,245,212,0.2); border-radius: 2px; }
+        .right-panel.closed { transform: translateX(100%); }
+
+        .panel-header {
+            padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; background: var(--panel-bg); backdrop-filter: blur(14px); z-index: 5;
+        }
+        .panel-header h2 { font-size: 0.75rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); }
+
+        .sec { padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .sec-title {
+            font-size: 0.6rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--text-dim); margin-bottom: 6px;
+            display: flex; align-items: center; gap: 4px;
+        }
+
+        .ctrl-row { display: flex; align-items: center; margin-bottom: 5px; gap: 6px; }
+        .ctrl-label { font-size: 0.7rem; color: var(--text); flex: 0 0 auto; min-width: 70px; }
+        .ctrl-val {
+            font-size: 0.65rem; color: var(--primary); font-weight: 600;
+            min-width: 32px; text-align: right; font-family: 'Courier New', monospace;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none; flex: 1;
+            height: 3px; border-radius: 2px; background: rgba(255,255,255,0.08);
+            outline: none; cursor: pointer; margin: 0 4px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+            background: var(--primary); box-shadow: 0 0 6px rgba(0,245,212,0.5);
+            cursor: pointer; transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+        input[type="range"]::-moz-range-thumb {
+            width: 12px; height: 12px; border-radius: 50%; border: none;
+            background: var(--primary); box-shadow: 0 0 6px rgba(0,245,212,0.5);
+            cursor: pointer;
+        }
+
+        .btn-grid { display: grid; gap: 3px; }
+        .btn-grid.g3 { grid-template-columns: repeat(3, 1fr); }
+        .btn-grid.g4 { grid-template-columns: repeat(4, 1fr); }
+        .btn-grid.g2 { grid-template-columns: repeat(2, 1fr); }
+        .btn-grid.g5 { grid-template-columns: repeat(5, 1fr); }
+
+        .m-btn {
+            padding: 4px 3px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.02); color: var(--text-dim);
+            font-size: 0.6rem; font-weight: 500; cursor: pointer; transition: all var(--transition);
+            text-align: center; font-family: inherit;
+        }
+        .m-btn:hover { border-color: rgba(0,245,212,0.25); color: var(--text); background: rgba(0,245,212,0.06); }
+        .m-btn.active { border-color: var(--primary); background: rgba(0,245,212,0.12); color: var(--primary); box-shadow: var(--glow); }
+
+        .act-btn {
+            padding: 6px 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03); color: var(--text); font-size: 0.68rem;
+            cursor: pointer; transition: all var(--transition); font-family: inherit;
+            display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%;
+        }
+        .act-btn:hover { border-color: var(--primary); background: rgba(0,245,212,0.08); }
+        .act-btn.danger:hover { border-color: var(--accent); background: rgba(255,107,107,0.08); }
+
+        .tog-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+        .tog-label { font-size: 0.7rem; color: var(--text); }
+        .tog {
+            width: 34px; height: 18px; border-radius: 9px;
+            background: rgba(255,255,255,0.08); cursor: pointer;
+            position: relative; transition: background var(--transition);
+        }
+        .tog.on { background: rgba(0,245,212,0.35); }
+        .tog::after {
+            content: ''; position: absolute; width: 12px; height: 12px;
+            border-radius: 50%; background: #ccc; top: 3px; left: 3px;
+            transition: transform var(--transition);
+        }
+        .tog.on::after { transform: translateX(16px); background: var(--primary); }
+
+        .swatch-row { display: flex; gap: 5px; margin-bottom: 6px; flex-wrap: wrap; }
+        .swatch {
+            width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+            border: 2px solid transparent; transition: all var(--transition); position: relative;
+        }
+        .swatch:hover { transform: scale(1.2); }
+        .swatch.active { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,0.15), var(--glow); }
+
+        .stats-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 28px; z-index: 100;
+            display: flex; align-items: center; gap: 14px; padding: 0 12px;
+            background: linear-gradient(0deg, rgba(2,2,6,0.9) 0%, transparent 100%);
+            pointer-events: none; font-size: 0.65rem; color: var(--text-dim);
+        }
+        .stats-bar .sv { color: var(--primary); font-weight: 600; font-family: 'Courier New', monospace; }
+
+        .hint-bar {
+            position: fixed; bottom: 34px; left: 50%; transform: translateX(-50%); z-index: 90;
+            background: rgba(10, 10, 25, 0.75); padding: 4px 12px; border-radius: 16px;
+            font-size: 0.65rem; color: var(--text-dim); border: 1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(6px); pointer-events: none; white-space: nowrap;
+            animation: hp 4s ease-in-out infinite;
+        }
+        .hint-bar strong { color: var(--primary); }
+        @keyframes hp { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+        .sub-section { margin-left: 8px; padding-left: 8px; border-left: 1px solid rgba(255,255,255,0.06); margin-bottom: 6px; }
+
+        select {
+            width: 100%; padding: 4px 6px; border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+            color: var(--text); font-size: 0.68rem; font-family: inherit; cursor: pointer; outline: none;
+        }
+        select option { background: #111; color: var(--text); }
+
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+    </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="top-bar">
+    <div class="logo-area">
+        <h1>⚡ Нейронный Поток</h1>
+        <span class="badge">ULTRA</span>
+    </div>
+    <div class="top-actions">
+        <button class="icon-btn" id="btnPause" title="Пауза">⏸</button>
+        <button class="icon-btn" id="btnReset" title="Сброс">↻</button>
+        <button class="icon-btn" id="btnShot" title="Скриншот">📷</button>
+        <button class="icon-btn" id="btnPresets" title="Пресеты">🎲</button>
+    </div>
+</div>
+
+<button class="panel-toggle" id="panelToggle">УПРАВЛЕНИЕ</button>
+
+<div class="right-panel" id="rPanel">
+    <div class="panel-header"><h2>⚙ Конфигуратор</h2></div>
+
+    <!-- REЖИМ -->
+    <div class="sec">
+        <div class="sec-title">🎭 Режим</div>
+        <div class="btn-grid g3" id="gMode">
+            <button class="m-btn active" data-v="flow">Поток</button>
+            <button class="m-btn" data-v="vortex">Вихрь</button>
+            <button class="m-btn" data-v="wave">Волна</button>
+            <button class="m-btn" data-v="gravity">Гравитация</button>
+            <button class="m-btn" data-v="neural">Нейросеть</button>
+            <button class="m-btn" data-v="explosion">Взрыв</button>
+            <button class="m-btn" data-v="matrix">Матрица</button>
+            <button class="m-btn" data-v="firefly">Светлячки</button>
+            <button class="m-btn" data-v="turbulence">Турбулентность</button>
+            <button class="m-btn" data-v="attractor">Аттрактор</button>
+            <button class="m-btn" data-v="spiral">Спираль</button>
+            <button class="m-btn" data-v="reaction">Реакция</button>
+            <button class="m-btn" data-v="magnetic">Магнетизм</button>
+            <button class="m-btn" data-v="fluid">Жидкость</button>
+            <button class="m-btn" data-v="chaos">Хаос</button>
+        </div>
+    </div>
+
+    <!-- ТИП -->
+    <div class="sec">
+        <div class="sec-title">✦ Тип частиц</div>
+        <div class="btn-grid g4" id="gType">
+            <button class="m-btn active" data-v="standard">Стандарт</button>
+            <button class="m-btn" data-v="energy">Энергия</button>
+            <button class="m-btn" data-v="cosmic">Космос</button>
+            <button class="m-btn" data-v="quantum">Квант</button>
+            <button class="m-btn" data-v="crystal">Кристалл</button>
+            <button class="m-btn" data-v="plasma">Плазма</button>
+            <button class="m-btn" data-v="nebula">Туманность</button>
+            <button class="m-btn" data-v="spark">Искры</button>
+        </div>
+    </div>
+
+    <!-- ФОН -->
+    <div class="sec">
+        <div class="sec-title">🌌 Фон</div>
+        <div class="btn-grid g3" id="gBg">
+            <button class="m-btn active" data-v="dark">Тёмный</button>
+            <button class="m-btn" data-v="gradient">Градиент</button>
+            <button class="m-btn" data-v="nebula">Туманность</button>
+            <button class="m-btn" data-v="grid">Сетка</button>
+            <button class="m-btn" data-v="stars">Звёзды</button>
+            <button class="m-btn" data-v="void">Пустота</button>
+            <button class="m-btn" data-v="aurora">Аврора</button>
+            <button class="m-btn" data-v="noise">Шум</button>
+            <button class="m-btn" data-v="circuit">Схема</button>
+        </div>
+    </div>
+
+    <!-- СВЯЗИ -->
+    <div class="sec">
+        <div class="sec-title">🔗 Связи</div>
+        <div class="btn-grid g4" id="gConn">
+            <button class="m-btn active" data-v="lines">Линии</button>
+            <button class="m-btn" data-v="arcs">Дуги</button>
+            <button class="m-btn" data-v="dotted">Пунктир</button>
+            <button class="m-btn" data-v="bezier">Безье</button>
+            <button class="m-btn" data-v="energy">Энергия</button>
+            <button class="m-btn" data-v="pulse">Пульс</button>
+            <button class="m-btn" data-v="chain">Цепи</button>
+            <button class="m-btn" data-v="none">Нет</button>
+        </div>
+        <div class="ctrl-row"><span class="ctrl-label">Дистанция</span><input type="range" id="cConnDist" min="20" max="350" value="120"><span class="ctrl-val" id="cConnDistV">120</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Прозрачн.</span><input type="range" id="cConnOp" min="0" max="100" value="50"><span class="ctrl-val" id="cConnOpV">50%</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Толщина</span><input type="range" id="cConnW" min="1" max="40" value="8"><span class="ctrl-val" id="cConnWV">0.8</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Анимация</span><input type="range" id="cConnAnim" min="0" max="100" value="0"><span class="ctrl-val" id="cConnAnimV">0</span></div>
+    </div>
+
+    <!-- ЦВЕТА -->
+    <div class="sec">
+        <div class="sec-title">🎨 Тема</div>
+        <div class="swatch-row" id="gTheme">
+            <div class="swatch active" data-v="cyan" style="background:linear-gradient(135deg,#00f5d4,#00c9a7)"></div>
+            <div class="swatch" data-v="purple" style="background:linear-gradient(135deg,#9d50ff,#6e39a8)"></div>
+            <div class="swatch" data-v="coral" style="background:linear-gradient(135deg,#ff6b6b,#ee5a5a)"></div>
+            <div class="swatch" data-v="gold" style="background:linear-gradient(135deg,#ffd93d,#f9c74f)"></div>
+            <div class="swatch" data-v="ocean" style="background:linear-gradient(135deg,#00b4d8,#0077b6)"></div>
+            <div class="swatch" data-v="rainbow" style="background:conic-gradient(red,yellow,lime,aqua,blue,magenta,red)"></div>
+            <div class="swatch" data-v="fire" style="background:linear-gradient(135deg,#ff4500,#ff8c00,#ffd700)"></div>
+            <div class="swatch" data-v="ice" style="background:linear-gradient(135deg,#e0f7fa,#80deea,#0097a7)"></div>
+            <div class="swatch" data-v="matrix" style="background:linear-gradient(135deg,#00ff41,#003b00)"></div>
+        </div>
+        <div class="ctrl-row"><span class="ctrl-label">Вариация</span><input type="range" id="cHueVar" min="0" max="360" value="40"><span class="ctrl-val" id="cHueVarV">40°</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Насыщенн.</span><input type="range" id="cSat" min="0" max="100" value="75"><span class="ctrl-val" id="cSatV">75%</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Яркость</span><input type="range" id="cLit" min="10" max="90" value="55"><span class="ctrl-val" id="cLitV">55%</span></div>
+    </div>
+
+    <!-- ФИЗИКА -->
+    <div class="sec">
+        <div class="sec-title">⚛ Физика частиц</div>
+        <div class="ctrl-row"><span class="ctrl-label">Количество</span><input type="range" id="cCount" min="20" max="800" value="200"><span class="ctrl-val" id="cCountV">200</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Скорость</span><input type="range" id="cSpeed" min="1" max="80" value="15"><span class="ctrl-val" id="cSpeedV">1.5</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Размер</span><input type="range" id="cSize" min="5" max="80" value="20"><span class="ctrl-val" id="cSizeV">2.0</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Размер вар.</span><input type="range" id="cSizeVar" min="0" max="100" value="40"><span class="ctrl-val" id="cSizeVarV">0.4</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Трение</span><input type="range" id="cFrict" min="85" max="100" value="98"><span class="ctrl-val" id="cFrictV">0.98</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Отталкивание</span><input type="range" id="cRepel" min="0" max="300" value="60"><span class="ctrl-val" id="cRepelV">0.60</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Радиус вз.</span><input type="range" id="cIntRad" min="30" max="500" value="150"><span class="ctrl-val" id="cIntRadV">150</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Сила вз.</span><input type="range" id="cIntStr" min="1" max="200" value="50"><span class="ctrl-val" id="cIntStrV">0.50</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Центрир.</span><input type="range" id="cCenter" min="0" max="100" value="20"><span class="ctrl-val" id="cCenterV">0.20</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Гравитация</span><input type="range" id="cGrav" min="0" max="200" value="0"><span class="ctrl-val" id="cGravV">0.00</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Ветер</span><input type="range" id="cWind" min="-100" max="100" value="0"><span class="ctrl-val" id="cWindV">0.0</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Вязкость</span><input type="range" id="cVisc" min="0" max="100" value="0"><span class="ctrl-val" id="cViscV">0.00</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Отскок</span><input type="range" id="cBounce" min="0" max="100" value="85"><span class="ctrl-val" id="cBounceV">0.85</span></div>
+    </div>
+
+    <!-- ШУМ -->
+    <div class="sec">
+        <div class="sec-title">🌊 Поле шума</div>
+        <div class="ctrl-row"><span class="ctrl-label">Сила</span><input type="range" id="cNoiseStr" min="0" max="200" value="30"><span class="ctrl-val" id="cNoiseStrV">0.30</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Масштаб</span><input type="range" id="cNoiseScale" min="1" max="200" value="50"><span class="ctrl-val" id="cNoiseScaleV">0.005</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Скорость</span><input type="range" id="cNoiseSpeed" min="0" max="100" value="20"><span class="ctrl-val" id="cNoiseSpeedV">0.2</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Октавы</span><input type="range" id="cNoiseOct" min="1" max="8" value="3"><span class="ctrl-val" id="cNoiseOctV">3</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Тип</span>
+            <select id="cNoiseType">
+                <option value="simplex">Симплекс</option>
+                <option value="perlin">Перлин</option>
+                <option value="voronoi">Вороной</option>
+                <option value="curl">Кёрл</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- СИЛЫ -->
+    <div class="sec">
+        <div class="sec-title">💫 Векторные силы</div>
+        <div class="ctrl-row"><span class="ctrl-label">X направление</span><input type="range" id="cForceX" min="-100" max="100" value="0"><span class="ctrl-val" id="cForceXV">0.0</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Y направление</span><input type="range" id="cForceY" min="-100" max="100" value="0"><span class="ctrl-val" id="cForceYV">0.0</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Завихрение</span><input type="range" id="cCurlForce" min="0" max="100" value="0"><span class="ctrl-val" id="cCurlForceV">0.0</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Спираль</span><input type="range" id="cSpiralForce" min="-100" max="100" value="0"><span class="ctrl-val" id="cSpiralForceV">0.0</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Волна X</span><input type="range" id="cWaveX" min="0" max="100" value="0"><span class="ctrl-val" id="cWaveXV">0.0</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Волна Y</span><input type="range" id="cWaveY" min="0" max="100" value="0"><span class="ctrl-val" id="cWaveYV">0.0</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Притяжение к курсору</span><input type="range" id="cMouseGrav" min="0" max="100" value="0"><span class="ctrl-val" id="cMouseGravV">0.0</span></div>
+    </div>
+
+    <!-- МЕЖЧАСТИЧНЫЕ -->
+    <div class="sec">
+        <div class="sec-title">🔬 Межчастичные</div>
+        <div class="tog-row"><span class="tog-label">Гравитация между частицами</span><div class="tog" id="tPPGrav"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Сила</span><input type="range" id="cPPGravStr" min="0" max="100" value="10"><span class="ctrl-val" id="cPPGravStrV">0.10</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Мин. дистанция</span><input type="range" id="cPPGravMin" min="10" max="200" value="30"><span class="ctrl-val" id="cPPGravMinV">30</span></div>
+        <div class="tog-row"><span class="tog-label">Электростатика</span><div class="tog" id="tElectro"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Заряд вар.</span><input type="range" id="cChargeVar" min="0" max="100" value="50"><span class="ctrl-val" id="cChargeVarV">0.50</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Сила</span><input type="range" id="cElecStr" min="0" max="100" value="20"><span class="ctrl-val" id="cElecStrV">0.20</span></div>
+    </div>
+
+    <!-- ЭФФЕКТЫ -->
+    <div class="sec">
+        <div class="sec-title">✨ Эффекты</div>
+        <div class="tog-row"><span class="tog-label">Хвосты</span><div class="tog on" id="tTrails"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Длина</span><input type="range" id="cTrailLen" min="2" max="50" value="12"><span class="ctrl-val" id="cTrailLenV">12</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Затухание</span><input type="range" id="cTrailFade" min="50" max="100" value="85"><span class="ctrl-val" id="cTrailFadeV">0.85</span></div>
+        <div class="tog-row"><span class="tog-label">Свечение</span><div class="tog on" id="tGlow"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Интенсивн.</span><input type="range" id="cGlowInt" min="0" max="100" value="70"><span class="ctrl-val" id="cGlowIntV">70%</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Радиус</span><input type="range" id="cGlowRad" min="10" max="100" value="50"><span class="ctrl-val" id="cGlowRadV">5.0</span></div>
+        <div class="tog-row"><span class="tog-label">Пульсация</span><div class="tog on" id="tPulse"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Скорость пульс.</span><input type="range" id="cPulseSpd" min="1" max="100" value="30"><span class="ctrl-val" id="cPulseSpdV">0.30</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Амплитуда</span><input type="range" id="cPulseAmp" min="0" max="100" value="40"><span class="ctrl-val" id="cPulseAmpV">0.40</span></div>
+        <div class="tog-row"><span class="tog-label">Виньетка</span><div class="tog on" id="tVig"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Сила виньетки</span><input type="range" id="cVigStr" min="0" max="100" value="50"><span class="ctrl-val" id="cVigStrV">50%</span></div>
+        <div class="tog-row"><span class="tog-label">След курсора</span><div class="tog" id="tMouseTr"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Длина следа</span><input type="range" id="cMouseTrLen" min="10" max="80" value="30"><span class="ctrl-val" id="cMouseTrLenV">30</span></div>
+        <div class="tog-row"><span class="tog-label">Зерно</span><div class="tog" id="tGrain"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Интенсивн.</span><input type="range" id="cGrainInt" min="0" max="100" value="20"><span class="ctrl-val" id="cGrainIntV">20%</span></div>
+        <div class="tog-row"><span class="tog-label">Хроматич. аберрация</span><div class="tog" id="tChroma"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Сила</span><input type="range" id="cChromaStr" min="0" max="100" value="30"><span class="ctrl-val" id="cChromaStrV">3.0</span></div>
+        <div class="tog-row"><span class="tog-label">Bloom</span><div class="tog" id="tBloom"></div></div>
+        <div class="ctrl-row"><span class="ctrl-label">Радиус Bloom</span><input type="range" id="cBloomRad" min="10" max="100" value="40"><span class="ctrl-val" id="cBloomRadV">4.0</span></div>
+    </div>
+
+    <!-- ОТРИСОВКА -->
+    <div class="sec">
+        <div class="sec-title">🖥 Отрисовка</div>
+        <div class="ctrl-row"><span class="ctrl-label">Blend Mode</span>
+            <select id="cBlend">
+                <option value="source-over">Normal</option>
+                <option value="lighter" selected>Additive</option>
+                <option value="screen">Screen</option>
+                <option value="overlay">Overlay</option>
+                <option value="color-dodge">Dodge</option>
+                <option value="difference">Difference</option>
+            </select>
+        </div>
+        <div class="ctrl-row"><span class="ctrl-label">Форма</span>
+            <select id="cShape">
+                <option value="circle">Круг</option>
+                <option value="square">Квадрат</option>
+                <option value="triangle">Треугольник</option>
+                <option value="star">Звезда</option>
+                <option value="cross">Крест</option>
+                <option value="diamond">Ромб</option>
+            </select>
+        </div>
+        <div class="ctrl-row"><span class="ctrl-label">Скорость времени</span><input type="range" id="cTimeScale" min="5" max="300" value="100"><span class="ctrl-val" id="cTimeScaleV">1.0x</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Чёткость линий</span><input type="range" id="cLineWidth" min="0" max="100" value="50"><span class="ctrl-val" id="cLineWidthV">50%</span></div>
+    </div>
+
+    <!-- ДЕЙСТВИЯ -->
+    <div class="sec">
+        <div class="sec-title">🚀 Действия</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+            <button class="act-btn" id="bExp">💥 Взрыв в центре</button>
+            <button class="act-btn" id="bVort">🌀 Вихрь</button>
+            <button class="act-btn" id="bImp">💫 Импульс</button>
+            <button class="act-btn" id="bRand">🎲 Рандомизация</button>
+            <button class="act-btn" id="bSwarm">🐝 Собрать в стаю</button>
+            <button class="act-btn" id="bScatter">💨 Разбросать</button>
+            <button class="act-btn" id="bCopy">📋 Копировать настройки</button>
+            <button class="act-btn danger" id="bClear">🗑 Очистить</button>
+        </div>
+    </div>
+</div>
+
+<div class="stats-bar">
+    <span>Частицы: <span class="sv" id="sP">0</span></span>
+    <span>Связи: <span class="sv" id="sC">0</span></span>
+    <span>FPS: <span class="sv" id="sF">0</span></span>
+    <span>Режим: <span class="sv" id="sM">Поток</span></span>
+    <span>Тип: <span class="sv" id="sT">Стандарт</span></span>
+</div>
+
+<div class="hint-bar">
+    <strong>💡</strong> Курсор — влияние • <strong>Shift</strong> — притяжение • <strong>Клик</strong> — взрыв • <strong>Пробел</strong> — смена режима
+</div>
+
+<script>
+'use strict';
+
+/* =============== PERLIN/SIMPLEX NOISE =============== */
+class NoiseGen {
+    constructor(){this.p=new Uint8Array(512);this.seed(42)}
+    seed(s){
+        const p=new Uint8Array(256);
+        for(let i=0;i<256;i++)p[i]=i;
+        for(let i=255;i>0;i--){s=(s*16807+7)%2147483647;const j=s%(i+1);[p[i],p[j]]=[p[j],p[i]]}
+        for(let i=0;i<512;i++)this.p[i]=p[i&255];
+    }
+    fade(t){return t*t*t*(t*(t*6-15)+10)}
+    lerp(t,a,b){return a+t*(b-a)}
+    grad(hash,x,y){const h=hash&3;return((h&1)?-x:x)+((h&2)?-y:y)}
+    perlin2(x,y){
+        const X=Math.floor(x)&255,Y=Math.floor(y)&255;
+        x-=Math.floor(x);y-=Math.floor(y);
+        const u=this.fade(x),v=this.fade(y);
+        const A=this.p[X]+Y,B=this.p[X+1]+Y;
+        return this.lerp(v,
+            this.lerp(u,this.grad(this.p[A],x,y),this.grad(this.p[B],x-1,y)),
+            this.lerp(u,this.grad(this.p[A+1],x,y-1),this.grad(this.p[B+1],x-1,y-1)));
+    }
+    simplex2(xin,yin){
+        const F2=0.5*(Math.sqrt(3)-1),G2=(3-Math.sqrt(3))/6;
+        const s=(xin+yin)*F2;const i=Math.floor(xin+s),j=Math.floor(yin+s);
+        const t=(i+j)*G2;const X0=i-t,Y0=j-t;const x0=xin-X0,y0=yin-Y0;
+        let i1,j1;if(x0>y0){i1=1;j1=0}else{i1=0;j1=1}
+        const x1=x0-i1+G2,y1=y0-j1+G2,x2=x0-1+2*G2,y2=y0-1+2*G2;
+        const ii=i&255,jj=j&255;
+        const gi0=this.p[ii+this.p[jj]]%12,gi1=this.p[ii+i1+this.p[jj+j1]]%12,gi2=this.p[ii+1+this.p[jj+1]]%12;
+        let n0=0,n1=0,n2=0;
+        let t0=0.5-x0*x0-y0*y0;if(t0>=0){t0*=t0;n0=t0*t0*this.grad(gi0,x0,y0)}
+        let t1=0.5-x1*x1-y1*y1;if(t1>=0){t1*=t1;n1=t1*t1*this.grad(gi1,x1,y1)}
+        let t2=0.5-x2*x2-y2*y2;if(t2>=0){t2*=t2;n2=t2*t2*this.grad(gi2,x2,y2)}
+        return 70*(n0+n1+n2);
+    }
+    voronoi2(x,y){
+        let minD=1e9;let secD=1e9;
+        for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+            const cx=Math.floor(x)+dx,cy=Math.floor(y)+dy;
+            const hx=cx+this.perlin2(cx*1.3,cy*1.3)*0.5;
+            const hy=cy+this.perlin2(cx*1.3+100,cy*1.3+100)*0.5;
+            const d=Math.hypot(x-hx,y-hy);
+            if(d<minD){secD=minD;minD=d}else if(d<secD){secD=d}
+        }
+        return secD-minD;
+    }
+    curl2(x,y){
+        const eps=0.01;
+        const dx=this.perlin2(x,y+eps)-this.perlin2(x,y-eps);
+        const dy=this.perlin2(x+eps,y)-this.perlin2(x-eps,y);
+        return{x:dx/(2*eps),y:-dy/(2*eps)};
+    }
+    fbm(x,y,oct,scale){
+        let val=0,amp=1,freq=1,max=0;
+        for(let i=0;i<oct;i++){
+            val+=this.simplex2(x*freq*scale,y*freq*scale)*amp;
+            max+=amp;amp*=0.5;freq*=2;
+        }
+        return val/max;
+    }
+}
+
+/* =============== VECTOR2 =============== */
+class V{
+    constructor(x=0,y=0){this.x=x;this.y=y}
+    add(v){this.x+=v.x;this.y+=v.y;return this}
+    sub(v){this.x-=v.x;this.y-=v.y;return this}
+    mul(s){this.x*=s;this.y*=s;return this}
+    div(s){if(s!==0){this.x/=s;this.y/=s}return this}
+    len(){return Math.hypot(this.x,this.y)}
+    norm(){const l=this.len();return l>0?this.div(l):this}
+    clone(){return new V(this.x,this.y)}
+    distTo(v){return Math.hypot(this.x-v.x,this.y-v.y)}
+    lerp(t,a){this.x+=(t.x-this.x)*a;this.y+=(t.y-this.y)*a;return this}
+    static dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+}
+
+/* =============== PARTICLE =============== */
+class Particle{
+    constructor(x,y,cfg){
+        this.pos=new V(x+(Math.random()-0.5)*40,y+(Math.random()-0.5)*40);
+        this.vel=new V((Math.random()-0.5)*cfg.baseSpeed,(Math.random()-0.5)*cfg.baseSpeed);
+        this.baseR=cfg.particleSize*(0.4+Math.random()*cfg.sizeVar);
+        this.r=this.baseR;
+        this.hue=cfg.baseHue+(cfg.rainbow?Math.random()*360:((Math.random()-0.5)*cfg.hueVar));
+        this.sat=cfg.saturation;
+        this.lit=cfg.lightness;
+        this.alpha=0.4+Math.random()*0.6;
+        this.friction=cfg.friction;
+        this.wAngle=Math.random()*Math.PI*2;
+        this.wStr=0.01+Math.random()*0.03;
+        this.pPhase=Math.random()*Math.PI*2;
+        this.pSpeed=cfg.pulseSpeed;
+        this.type=cfg.type;
+        this.trail=[];
+        this.maxT=cfg.enableTrails?cfg.trailLength:0;
+        this.life=1;
+        this.charge=Math.random()*2-1;
+        this.mass=0.5+Math.random()*1.5;
+        this.spin=(Math.random()-0.5)*0.05;
+        this.rot=0;
+        this.cfg=cfg;
+        this.bw=cfg.width;this.bh=cfg.height;
+        this.noiseOffset=Math.random()*1000;
+        this.temp=0.5+Math.random()*0.5;
+    }
+    update(mouse,cfg,time,noise,dt){
+        const ts=dt*0.016;
+
+        // Wander
+        this.wAngle+=(Math.random()-0.5)*this.wStr;
+        this.vel.add(new V(Math.cos(this.wAngle)*0.1,Math.sin(this.wAngle)*0.1));
+
+        // Mode behavior
+        this.modeBehavior(cfg,time,ts);
+
+        // Noise field
+        if(cfg.noiseStr>0){
+            const ns=cfg.noiseScale;
+            const nsp=cfg.noiseSpeed;
+            const nx=this.pos.x*ns+time*0.0001*nsp;
+            const ny=this.pos.y*ns;
+            let nVal,nAngle;
+
+            switch(cfg.noiseType){
+                case 'simplex':
+                    nVal=noise.fbm(nx+this.noiseOffset,ny+this.noiseOffset,cfg.noiseOct,1);
+                    nAngle=nVal*Math.PI*2;
+                    this.vel.add(new V(Math.cos(nAngle)*cfg.noiseStr*0.3,Math.sin(nAngle)*cfg.noiseStr*0.3));
+                    break;
+                case 'perlin':
+                    nVal=noise.fbm(nx+this.noiseOffset,ny+this.noiseOffset,cfg.noiseOct,1);
+                    nAngle=nVal*Math.PI*2;
+                    this.vel.add(new V(Math.cos(nAngle)*cfg.noiseStr*0.25,Math.sin(nAngle)*cfg.noiseStr*0.25));
+                    break;
+                case 'voronoi':
+                    nVal=noise.voronoi2(nx+this.noiseOffset,ny+this.noiseOffset);
+                    this.vel.add(new V((nVal-0.5)*cfg.noiseStr*0.4,(nVal-0.5)*cfg.noiseStr*0.4));
+                    break;
+                case 'curl':{
+                    const c=noise.curl2(nx+this.noiseOffset,ny+this.noiseOffset);
+                    this.vel.add(new V(c.x*cfg.noiseStr*0.3,c.y*cfg.noiseStr*0.3));
+                    break;
+                }
+            }
+        }
+
+        // Force vectors
+        if(cfg.forceX!==0||cfg.forceY!==0){
+            this.vel.add(new V(cfg.forceX*0.003,cfg.forceY*0.003));
+        }
+        if(cfg.curlForce>0){
+            const cx=this.bw/2,cy=this.bh/2;
+            const toC=new V(cx-this.pos.x,cy-this.pos.y);
+            const perp=new V(-toC.y,toC.x).norm();
+            this.vel.add(perp.mul(cfg.curlForce*0.003));
+        }
+        if(cfg.spiralForce!==0){
+            const cx=this.bw/2,cy=this.bh/2;
+            const toC=new V(cx-this.pos.x,cy-this.pos.y);
+            const d=toC.len();
+            if(d>5){
+                const spiralStr=cfg.spiralForce*0.002;
+                const angle=Math.atan2(toC.y,toC.x)+spiralStr;
+                this.vel.add(new V(Math.cos(angle)*0.1,Math.sin(angle)*0.1));
+            }
+        }
+        if(cfg.waveX>0){
+            this.vel.add(new V(Math.sin(this.pos.y*0.005+time*0.002)*cfg.waveX*0.003,0));
+        }
+        if(cfg.waveY>0){
+            this.vel.add(new V(0,Math.cos(this.pos.x*0.005+time*0.002)*cfg.waveY*0.003));
+        }
+
+        // Gravity
+        if(cfg.gravity>0){
+            this.vel.add(new V(0,cfg.gravity*0.002));
+        }
+
+        // Wind
+        if(cfg.wind!==0){
+            this.vel.add(new V(cfg.wind*0.001,Math.sin(time*0.001+this.pos.y*0.01)*0.1));
+        }
+
+        // Viscosity
+        if(cfg.viscosity>0){
+            this.vel.mul(1-cfg.viscosity*0.002);
+        }
+
+        // Mouse gravity
+        if(cfg.mouseGrav>0&&mouse.active){
+            const toM=new V(mouse.x-this.pos.x,mouse.y-this.pos.y);
+            const d=toM.len();
+            if(d>5&&d<cfg.interactRadius*2){
+                const str=cfg.mouseGrav/(d*0.1+1);
+                this.vel.add(toM.norm().mul(str*0.005));
+            }
+        }
+
+        // Mouse repulsion/attraction
+        if(mouse.active&&cfg.interactRadius>0){
+            const mPos=new V(mouse.x,mouse.y);
+            const d=this.pos.distTo(mPos);
+            if(d<cfg.interactRadius&&d>1){
+                const force=(cfg.interactRadius-d)/cfg.interactRadius;
+                const dir=mPos.clone().sub(this.pos).norm();
+                const mult=mouse.attractionMode?1:-1;
+                const influence=force*cfg.interactStrength*mult;
+                this.vel.add(dir.mul(influence));
+                this.r=this.baseR*(1+force*0.5);
+            }else{
+                this.r+=(this.baseR-this.r)*0.06;
+            }
+        }
+
+        // Centering force
+        if(cfg.centerForce>0){
+            const cx=this.bw/2,cy=this.bh/2;
+            const toC=new V(cx-this.pos.x,cy-this.pos.y);
+            const d=Math.hypot(this.pos.x-cx,this.pos.y-cy);
+            const maxD=Math.hypot(this.bw/2,this.bh/2);
+            const str=cfg.centerForce*(d/maxD)*0.003;
+            this.vel.add(toC.norm().mul(str));
+        }
+
+        // Type-specific
+        this.typeEffect(cfg,time);
+
+        // Apply friction & integrate
+        this.vel.mul(this.friction);
+        this.pos.add(this.vel.clone().mul(ts));
+
+        // Bounds
+        this.handleBounds(cfg.bounceFactor);
+
+        // Trail
+        if(cfg.enableTrails){
+            this.trail.unshift({x:this.pos.x,y:this.pos.y,r:this.r*0.7,a:this.alpha});
+            if(this.trail.length>this.maxT)this.trail.pop();
+        }
+
+        // Pulse
+        if(cfg.enablePulse){
+            this.pPhase+=this.pSpeed*0.01;
+            const pulseAmp=cfg.pulseAmp;
+            if(cfg.mode==='firefly'){
+                this.alpha=0.15+Math.abs(Math.sin(this.pPhase))*0.85;
+            }else{
+                this.alpha=0.35+Math.sin(this.pPhase)*pulseAmp*0.5;
+            }
+        }
+
+        // Rotation
+        this.rot+=this.spin*ts;
+
+        // Temperature
+        const speed=this.vel.len();
+        this.temp=Math.min(1,speed/5);
+    }
+
+    modeBehavior(cfg,time,dt){
+        const cx=this.bw/2,cy=this.bh/2;
+        switch(cfg.mode){
+            case 'vortex':{
+                const toC=new V(cx-this.pos.x,cy-this.pos.y);
+                const d=toC.len();
+                if(d>5){
+                    const perp=new V(-toC.y,toC.x).norm();
+                    const speed=0.25*Math.min(d/200,1.5);
+                    this.vel.add(perp.mul(speed*dt));
+                    this.vel.add(toC.norm().mul(0.015*dt));
+                }
+                break;
+            }
+            case 'wave':{
+                const wx=Math.sin(this.pos.x*0.008+time*0.0015)*0.25*dt;
+                const wy=Math.cos(this.pos.y*0.008+time*0.0015)*0.25*dt;
+                this.vel.add(new V(wx,wy));
+                break;
+            }
+            case 'gravity':{
+                const toC=new V(cx-this.pos.x,cy-this.pos.y);
+                const d=toC.len();
+                if(d>10){
+                    const gf=0.4/(d*0.008+1);
+                    this.vel.add(toC.norm().mul(gf*dt));
+                }
+                break;
+            }
+            case 'neural':{
+                if(Math.random()<0.004){
+                    this.vel.add(new V((Math.random()-0.5)*1.5,(Math.random()-0.5)*1.5));
+                }
+                break;
+            }
+            case 'matrix':{
+                const gx=Math.round(this.pos.x/35)*35;
+                const gy=Math.round(this.pos.y/35)*35;
+                const toG=new V(gx-this.pos.x,gy-this.pos.y);
+                this.vel.add(toG.mul(0.008*dt));
+                this.vel.add(new V(0,0.12*dt));
+                this.vel.mul(0.997);
+                break;
+            }
+            case 'firefly':{
+                if(Math.random()<0.008)this.wAngle=Math.random()*Math.PI*2;
+                this.vel.mul(0.965);
+                break;
+            }
+            case 'turbulence':{
+                const tx=Math.sin(this.pos.y*0.006+time*0.002)*0.35*dt;
+                const ty=Math.cos(this.pos.x*0.006+time*0.002)*0.35*dt;
+                this.vel.add(new V(tx,ty));
+                break;
+            }
+            case 'attractor':{
+                // Lorenz-like attractor
+                const a=10,b=28,c=2.67;
+                const px=(this.pos.x-cx)*0.01,py=(this.pos.y-cy)*0.01;
+                const dx=a*(py-px),dy=px*(b-px)-py,dz=px*py-c*0;
+                this.vel.add(new V(dx*0.01*dt,dy*0.01*dt));
+                break;
+            }
+            case 'spiral':{
+                const toC=new V(cx-this.pos.x,cy-this.pos.y);
+                const d=toC.len();
+                const angle=Math.atan2(toC.y,toC.x);
+                const spiralAngle=angle+time*0.001+d*0.005;
+                const targetX=cx+Math.cos(spiralAngle)*d*0.99;
+                const targetY=cy+Math.sin(spiralAngle)*d*0.99;
+                const toT=new V(targetX-this.pos.x,targetY-this.pos.y);
+                this.vel.add(toT.mul(0.02*dt));
+                break;
+            }
+            case 'explosion':{
+                const toC=new V(cx-this.pos.x,cy-this.pos.y);
+                const d=toC.len();
+                if(d>0){
+                    this.vel.add(toC.norm().mul(0.05*dt*Math.exp(-d*0.003)));
+                }
+                break;
+            }
+            case 'reaction':{
+                // Reaction-diffusion like
+                const neighbors=0;
+                const rx=Math.sin(this.pos.x*0.01+time*0.001)*0.2;
+                const ry=Math.cos(this.pos.y*0.01+time*0.001)*0.2;
+                this.vel.add(new V(rx,ry));
+                break;
+            }
+            case 'magnetic':{
+                const toC=new V(cx-this.pos.x,cy-this.pos.y);
+                const d=toC.len();
+                if(d>20){
+                    const magnetism=Math.sin(d*0.02+time*0.003)*0.15;
+                    this.vel.add(toC.norm().mul(magnetism*dt));
+                }
+                break;
+            }
+            case 'fluid':{
+                // Simplified Navier-Stokes
+                const vort=Math.sin(this.pos.x*0.005+time*0.001)*Math.cos(this.pos.y*0.005+time*0.001);
+                this.vel.add(new V(vort*0.2,-vort*0.15));
+                this.vel.mul(0.99);
+                break;
+            }
+            case 'chaos':{
+                // Double pendulum chaos
+                const theta1=this.pos.x*0.01,theta2=this.pos.y*0.01;
+                const dtheta1=Math.sin(theta2)*0.3;
+                const dtheta2=Math.sin(theta1)*0.3;
+                this.vel.add(new V(dtheta1*dt,dtheta2*dt));
+                break;
+            }
+        }
+    }
+
+    typeEffect(cfg,time){
+        switch(this.type){
+            case 'energy':
+                this.r=this.baseR*(1+Math.sin(time*0.004+this.pPhase)*0.35);
+                break;
+            case 'cosmic':
+                this.hue+=Math.sin(time*0.0008+this.pPhase)*0.3;
+                this.alpha=0.3+Math.abs(Math.cos(this.pPhase+time*0.001))*0.7;
+                break;
+            case 'quantum':
+                this.alpha=Math.random()<0.3?0:0.5+Math.random()*0.5;
+                if(Math.random()<0.002){
+                    this.pos.x=Math.random()*this.bw;
+                    this.pos.y=Math.random()*this.bh;
+                }
+                break;
+            case 'crystal':
+                this.r=this.baseR*(1+0.1*Math.sin(this.pPhase*2));
+                this.sat=80+Math.sin(time*0.002+this.pPhase)*20;
+                break;
+            case 'plasma':
+                this.hue=(time*0.05+this.pPhase*50)%360;
+                this.r=this.baseR*(1+Math.sin(time*0.003+this.pPhase)*0.4);
+                break;
+            case 'nebula':
+                this.alpha=0.15+Math.sin(this.pPhase)*0.15;
+                this.r=this.baseR*2.5;
+                break;
+            case 'spark':
+                this.life-=0.002;
+                this.r=this.baseR*(1-this.life*0.5);
+                break;
+        }
+    }
+
+    handleBounds(bf){
+        const pad=this.r+1;
+        if(this.pos.x<pad){this.pos.x=pad;this.vel.x=Math.abs(this.vel.x)*bf}
+        if(this.pos.x>this.bw-pad){this.pos.x=this.bw-pad;this.vel.x=-Math.abs(this.vel.x)*bf}
+        if(this.pos.y<pad){this.pos.y=pad;this.vel.y=Math.abs(this.vel.y)*bf}
+        if(this.pos.y>this.bh-pad){this.pos.y=this.bh-pad;this.vel.y=-Math.abs(this.vel.y)*bf}
+    }
+
+    draw(ctx,cfg){
+        if(this.r<0.3)return;
+        // Trail
+        if(cfg.enableTrails&&this.trail.length>1){
+            const fade=cfg.trailFade;
+            for(let i=0;i<this.trail.length-1;i++){
+                const t1=this.trail[i],t2=this.trail[i+1];
+                const ta=Math.pow(fade/100,i)*0.3;
+                ctx.beginPath();
+                ctx.moveTo(t1.x,t1.y);
+                ctx.lineTo(t2.x,t2.y);
+                ctx.strokeStyle=`hsla(${this.hue},${this.sat}%,${this.lit}%,${ta})`;
+                ctx.lineWidth=t1.r*0.4;
+                ctx.lineCap='round';
+                ctx.stroke();
+            }
+        }
+
+        ctx.save();
+        ctx.translate(this.pos.x,this.pos.y);
+        ctx.rotate(this.rot);
+
+        // Glow
+        if(cfg.enableGlow){
+            const gi=cfg.glowIntensity/100;
+            const gr=cfg.glowRadius/10;
+            const glow=ctx.createRadialGradient(0,0,0,0,0,this.r*gr*gi);
+            glow.addColorStop(0,`hsla(${this.hue},${this.sat}%,${this.lit}%,${this.alpha*0.5})`);
+            glow.addColorStop(0.4,`hsla(${this.hue},${this.sat}%,${this.lit}%,${this.alpha*0.15})`);
+            glow.addColorStop(1,'transparent');
+            ctx.beginPath();
+            ctx.arc(0,0,this.r*gr*gi,0,Math.PI*2);
+            ctx.fillStyle=glow;
+            ctx.fill();
+        }
+
+        // Shape
+        ctx.fillStyle=`hsla(${this.hue},${this.sat}%,${this.lit}%,${this.alpha})`;
+        ctx.beginPath();
+        switch(cfg.shape){
+            case 'circle':
+                ctx.arc(0,0,this.r,0,Math.PI*2);
+                break;
+            case 'square':
+                ctx.rect(-this.r,-this.r,this.r*2,this.r*2);
+                break;
+            case 'triangle':
+                for(let i=0;i<3;i++){
+                    const a=Math.PI*2/3*i-Math.PI/2;
+                    if(i===0)ctx.moveTo(Math.cos(a)*this.r,Math.sin(a)*this.r);
+                    else ctx.lineTo(Math.cos(a)*this.r,Math.sin(a)*this.r);
+                }
+                ctx.closePath();
+                break;
+            case 'star':
+                for(let i=0;i<5;i++){
+                    const a1=Math.PI*2/5*i-Math.PI/2;
+                    const a2=a1+Math.PI/5;
+                    ctx.lineTo(Math.cos(a1)*this.r,Math.sin(a1)*this.r);
+                    ctx.lineTo(Math.cos(a2)*this.r*0.4,Math.sin(a2)*this.r*0.4);
+                }
+                ctx.closePath();
+                break;
+            case 'cross':
+                const w=this.r*0.3;
+                ctx.rect(-w,-this.r,w*2,this.r*2);
+                ctx.rect(-this.r,-w,this.r*2,w*2);
+                break;
+            case 'diamond':
+                ctx.moveTo(0,-this.r);
+                ctx.lineTo(this.r,0);
+                ctx.lineTo(0,this.r);
+                ctx.lineTo(-this.r,0);
+                ctx.closePath();
+                break;
+        }
+        ctx.fill();
+
+        // Highlight
+        if(this.type!=='nebula'){
+            ctx.beginPath();
+            ctx.arc(-this.r*0.25,-this.r*0.25,this.r*0.3,0,Math.PI*2);
+            ctx.fillStyle=`hsla(${this.hue},100%,95%,${this.alpha*0.4})`;
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+}
+
+/* =============== CONNECTION MANAGER =============== */
+class CM{
+    constructor(){this.md=120;this.mdSq=14400}
+    setDist(d){this.md=d;this.mdSq=d*d}
+    draw(ctx,particles,cfg,time){
+        if(cfg.connStyle==='none')return 0;
+        let count=0;
+        const op=cfg.connOpacity/100;
+        const lw=cfg.connWidth/10;
+        const animAmt=cfg.connAnim/100;
+
+        for(let i=0;i<particles.length;i++){
+            for(let j=i+1;j<particles.length;j++){
+                const dx=particles[i].pos.x-particles[j].pos.x;
+                const dy=particles[i].pos.y-particles[j].pos.y;
+                const dSq=dx*dx+dy*dy;
+                if(dSq<this.mdSq){
+                    const d=Math.sqrt(dSq);
+                    const a=(1-d/this.md)*op;
+                    const avgH=(particles[i].hue+particles[j].hue)/2;
+                    const baseColor=`hsla(${avgH},70%,60%,${a})`;
+
+                    ctx.strokeStyle=baseColor;
+                    ctx.lineWidth=lw*(1-d/this.md);
+
+                    const p1=particles[i].pos,p2=particles[j].pos;
+                    ctx.beginPath();
+                    switch(cfg.connStyle){
+                        case 'arcs':{
+                            const mx=(p1.x+p2.x)/2,my=(p1.y+p2.y)/2;
+                            const off=Math.sin(d*0.05+time*0.003)*25;
+                            ctx.moveTo(p1.x,p1.y);
+                            ctx.quadraticCurveTo(mx+off,my+off,p2.x,p2.y);
+                            break;
+                        }
+                        case 'dotted':
+                            ctx.setLineDash([2,4]);
+                            ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);
+                            break;
+                        case 'bezier':{
+                            const mx=(p1.x+p2.x)/2,my=(p1.y+p2.y)/2;
+                            const off1=Math.sin(d*0.03+time*0.002)*15;
+                            const off2=Math.cos(d*0.03+time*0.002)*15;
+                            ctx.moveTo(p1.x,p1.y);
+                            ctx.bezierCurveTo(p1.x+off1,p1.y,p2.x+off2,p2.y,p2.x,p2.y);
+                            break;
+                        }
+                        case 'energy':{
+                            const segments=5;
+                            ctx.moveTo(p1.x,p1.y);
+                            for(let s=1;s<segments;s++){
+                                const t=s/segments;
+                                const ex=p1.x+(p2.x-p1.x)*t+Math.sin(time*0.01+t*5)*8;
+                                const ey=p1.y+(p2.y-p1.y)*t+Math.cos(time*0.01+t*5)*8;
+                                ctx.lineTo(ex,ey);
+                            }
+                            ctx.lineTo(p2.x,p2.y);
+                            break;
+                        }
+                        case 'pulse':{
+                            const pulsePhase=Math.sin(time*0.005-d*0.05)*0.5+0.5;
+                            ctx.strokeStyle=`hsla(${avgH},80%,70%,${a*pulsePhase})`;
+                            ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);
+                            break;
+                        }
+                        case 'chain':{
+                            const links=4;
+                            ctx.moveTo(p1.x,p1.y);
+                            for(let l=1;l<links;l++){
+                                const t=l/links;
+                                const lx=p1.x+(p2.x-p1.x)*t;
+                                const ly=p1.y+(p2.y-p1.y)*t;
+                                const off=Math.sin(time*0.008+l*2)*3;
+                                ctx.lineTo(lx+off,ly+off);
+                            }
+                            ctx.lineTo(p2.x,p2.y);
+                            break;
+                        }
+                        default:
+                            ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+}
+
+/* =============== MOUSE TRAIL =============== */
+class MouseTrail{
+    constructor(){this.pts=[];this.ml=30}
+    add(x,y){this.pts.unshift({x,y,t:Date.now()});if(this.pts.length>this.ml)this.pts.pop()}
+    draw(ctx,hue){
+        if(this.pts.length<2)return;
+        for(let i=0;i<this.pts.length-1;i++){
+            const p1=this.pts[i],p2=this.pts[i+1];
+            const age=Date.now()-p1.t;
+            const a=Math.max(0,1-age/1500)*0.3;
+            ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);
+            ctx.strokeStyle=`hsla(${hue},70%,60%,${a})`;
+            ctx.lineWidth=2*(1-i/this.pts.length);ctx.lineCap='round';ctx.stroke();
+        }
+    }
+    clear(){this.pts=[]}
+    setLen(l){this.ml=l}
+}
+
+/* =============== SCENE =============== */
+class Scene{
+    constructor(){
+        this.cv=document.getElementById('c');
+        this.cx=this.cv.getContext('2d',{alpha:false});
+        this.cm=new CM();
+        this.mt=new MouseTrail();
+        this.noise=new NoiseGen();
+
+        this.cfg={
+            baseSpeed:1.5,particleSize:2,sizeVar:0.4,
+            baseHue:175,hueVar:40,saturation:75,lightness:55,
+            type:'standard',mode:'flow',bg:'dark',
+            connStyle:'lines',connDist:120,connOpacity:50,connWidth:8,connAnim:0,
+            friction:0.98,repelForce:0.6,interactRadius:150,interactStrength:0.5,
+            centerForce:0.2,gravity:0,wind:0,viscosity:0,bounceFactor:0.85,
+            enableTrails:true,trailLength:12,trailFade:85,
+            enableGlow:true,glowIntensity:70,glowRadius:5,
+            enablePulse:true,pulseSpeed:0.3,pulseAmp:0.4,
+            enableVignette:true,vignetteStr:50,
+            enableMouseTrail:false,mouseTrailLen:30,
+            enableGrain:false,grainInt:20,
+            enableChroma:false,chromaStr:3,
+            enableBloom:false,bloomRad:4,
+            blendMode:'lighter',shape:'circle',
+            timeScale:1,
+            particleCount:200,
+            noiseStr:0.3,noiseScale:0.005,noiseSpeed:0.2,noiseOct:3,noiseType:'simplex',
+            forceX:0,forceY:0,curlForce:0,spiralForce:0,waveX:0,waveY:0,mouseGrav:0,
+            ppGravity:false,ppGravStr:0.1,ppGravMin:30,
+            electrostatic:false,chargeVar:0.5,elecStr:0.2,
+            width:window.innerWidth,height:window.innerHeight,
+            dpr:Math.min(window.devicePixelRatio||1,2),rainbow:false
+        };
+
+        this.particles=[];
+        this.mouse={x:null,y:null,active:false,attractionMode:false};
+        this.anim={running:true,fps:0,fc:0,ft:0};
+        this.connCount=0;this.ripples=[];this.bgStars=[];
+        this.modeNames={flow:'Поток',vortex:'Вихрь',wave:'Волна',gravity:'Гравитация',neural:'Нейросеть',explosion:'Взрыв',matrix:'Матрица',firefly:'Светлячки',turbulence:'Турбулентность',attractor:'Аттрактор',spiral:'Спираль',reaction:'Реакция',magnetic:'Магнетизм',fluid:'Жидкость',chaos:'Хаос'};
+        this.typeNames={standard:'Стандарт',energy:'Энергия',cosmic:'Космос',quantum:'Квант',crystal:'Кристалл',plasma:'Плазма',nebula:'Туманность',spark:'Искры'};
+        this.themes={
+            cyan:{h:175,v:40},purple:{h:260,v:35},coral:{h:350,v:30},gold:{h:45,v:25},
+            ocean:{h:200,v:30},rainbow:{h:0,v:360},fire:{h:25,v:40},ice:{h:190,v:30},matrix:{h:120,v:30}
+        };
+
+        this.initStars();
+        this.setupCV();
+        this.initP();
+        this.bindUI();
+        this.bindEv();
+        this.loop();
+    }
+
+    initStars(){
+        this.bgStars=[];
+        for(let i=0;i<250;i++){
+            this.bgStars.push({x:Math.random()*this.cfg.width,y:Math.random()*this.cfg.height,
+                r:Math.random()*1.5+0.3,a:Math.random()*0.5+0.1,s:Math.random()*0.004+0.001});
+        }
+    }
+
+    setupCV(){
+        const{width:w,height:h,dpr}=this.cfg;
+        this.cv.width=w*dpr;this.cv.height=h*dpr;
+        this.cv.style.width=w+'px';this.cv.style.height=h+'px';
+        this.cx.scale(dpr,dpr);
+    }
+
+    initP(){
+        this.particles=[];
+        const n=this.cfg.particleCount;
+        const cx=this.cfg.width/2,cy=this.cfg.height/2;
+        const sp=Math.min(this.cfg.width,this.cfg.height)*0.3;
+
+        for(let i=0;i<n;i++){
+            const a=Math.random()*Math.PI*2;
+            const r=Math.random()*sp;
+            this.particles.push(new Particle(cx+Math.cos(a)*r,cy+Math.sin(a)*r,{...this.cfg}));
+        }
+    }
+
+    bindUI(){
+        const grp=(id,cfgKey,cb)=>{
+            document.querySelectorAll(`#${id} .m-btn`).forEach(b=>{
+                b.addEventListener('click',()=>{
+                    document.querySelectorAll(`#${id} .m-btn`).forEach(x=>x.classList.remove('active'));
+                    b.classList.add('active');
+                    this.cfg[cfgKey]=b.dataset.v;
+                    if(cb)cb(b.dataset.v);
+                });
+            });
+        };
+
+        grp('gMode','mode',v=>{document.getElementById('sM').textContent=this.modeNames[v]||v});
+        grp('gType','type',v=>{document.getElementById('sT').textContent=this.typeNames[v]||v});
+        grp('gBg','bg');
+        grp('gConn','connStyle');
+
+        // Theme
+        document.querySelectorAll('#gTheme .swatch').forEach(s=>{
+            s.addEventListener('click',()=>{
+                document.querySelectorAll('#gTheme .swatch').forEach(x=>x.classList.remove('active'));
+                s.classList.add('active');
+                const t=this.themes[s.dataset.v];
+                if(t){
+                    this.cfg.baseHue=t.h;this.cfg.hueVar=t.v;
+                    this.cfg.rainbow=s.dataset.v==='rainbow';
+                    this.particles.forEach(p=>{
+                        p.hue=t.h+(this.cfg.rainbow?Math.random()*360:(Math.random()-0.5)*t.v);
+                    });
+                }
+            });
+        });
+
+        // Sliders
+        const sl=(id,key,transform,display)=>{
+            const el=document.getElementById(id),ve=document.getElementById(id+'V');
+            el.addEventListener('input',()=>{
+                const v=parseFloat(el.value);
+                const nv=transform(v);
+                this.cfg[key]=nv;
+                ve.textContent=display(nv);
+                if(key==='connDist')this.cm.setDist(nv);
+                if(key==='particleCount'){this.cfg.particleCount=Math.round(nv);this.initP()}
+                if(key==='mouseTrailLen')this.mt.setLen(Math.round(nv));
+            });
+        };
+
+        sl('cConnDist','connDist',v=>v,v=>''+v);
+        sl('cConnOp','connOpacity',v=>v,v=>v+'%');
+        sl('cConnW','connWidth',v=>v,v=>(v/10).toFixed(1));
+        sl('cConnAnim','connAnim',v=>v,v=>''+v);
+        sl('cHueVar','hueVar',v=>v,v=>v+'°');
+        sl('cSat','saturation',v=>v,v=>v+'%');
+        sl('cLit','lightness',v=>v,v=>v+'%');
+        sl('cCount','particleCount',v=>v,v=>''+v);
+        sl('cSpeed','baseSpeed',v=>v/10,v=>v.toFixed(1));
+        sl('cSize','particleSize',v=>v/10,v=>v.toFixed(1));
+        sl('cSizeVar','sizeVar',v=>v/100,v=>v.toFixed(1));
+        sl('cFrict','friction',v=>v/100,v=>v.toFixed(2));
+        sl('cRepel','repelForce',v=>v/100,v=>v.toFixed(2));
+        sl('cIntRad','interactRadius',v=>v,v=>''+v);
+        sl('cIntStr','interactStrength',v=>v/100,v=>v.toFixed(2));
+        sl('cCenter','centerForce',v=>v/100,v=>v.toFixed(2));
+        sl('cGrav','gravity',v=>v/100,v=>v.toFixed(2));
+        sl('cWind','wind',v=>v/10,v=>v.toFixed(1));
+        sl('cVisc','viscosity',v=>v/100,v=>v.toFixed(2));
+        sl('cBounce','bounceFactor',v=>v/100,v=>v.toFixed(2));
+        sl('cNoiseStr','noiseStr',v=>v/100,v=>v.toFixed(2));
+        sl('cNoiseScale','noiseScale',v=>v/10000,v=>v.toFixed(4));
+        sl('cNoiseSpeed','noiseSpeed',v=>v/100,v=>v.toFixed(1));
+        sl('cNoiseOct','noiseOct',v=>v,v=>''+v);
+        sl('cForceX','forceX',v=>v/10,v=>v.toFixed(1));
+        sl('cForceY','forceY',v=>v/10,v=>v.toFixed(1));
+        sl('cCurlForce','curlForce',v=>v/10,v=>v.toFixed(1));
+        sl('cSpiralForce','spiralForce',v=>v/10,v=>v.toFixed(1));
+        sl('cWaveX','waveX',v=>v/10,v=>v.toFixed(1));
+        sl('cWaveY','waveY',v=>v/10,v=>v.toFixed(1));
+        sl('cMouseGrav','mouseGrav',v=>v/10,v=>v.toFixed(1));
+        sl('cPPGravStr','ppGravStr',v=>v/100,v=>v.toFixed(2));
+        sl('cPPGravMin','ppGravMin',v=>v,v=>''+v);
+        sl('cChargeVar','chargeVar',v=>v/100,v=>v.toFixed(2));
+        sl('cElecStr','elecStr',v=>v/100,v=>v.toFixed(2));
+        sl('cTrailLen','trailLength',v=>v,v=>''+v);
+        sl('cTrailFade','trailFade',v=>v,v=>(v/100).toFixed(2));
+        sl('cGlowInt','glowIntensity',v=>v,v=>v+'%');
+        sl('cGlowRad','glowRadius',v=>v/10,v=>v.toFixed(1));
+        sl('cPulseSpd','pulseSpeed',v=>v/100,v=>v.toFixed(2));
+        sl('cPulseAmp','pulseAmp',v=>v/100,v=>v.toFixed(2));
+        sl('cVigStr','vignetteStr',v=>v,v=>v+'%');
+        sl('cMouseTrLen','mouseTrailLen',v=>v,v=>''+v);
+        sl('cGrainInt','grainInt',v=>v,v=>v+'%');
+        sl('cChromaStr','chromaStr',v=>v/10,v=>v.toFixed(1));
+        sl('cBloomRad','bloomRad',v=>v/10,v=>v.toFixed(1));
+        sl('cTimeScale','timeScale',v=>v/100,v=>v.toFixed(1)+'x');
+
+        // Noise type select
+        document.getElementById('cNoiseType').addEventListener('change',e=>{this.cfg.noiseType=e.target.value});
+
+        // Selects
+        document.getElementById('cBlend').addEventListener('change',e=>{this.cfg.blendMode=e.target.value});
+        document.getElementById('cShape').addEventListener('change',e=>{this.cfg.shape=e.target.value});
+
+        // Toggles
+        const tog=(id,key,cb)=>{
+            const el=document.getElementById(id);
+            el.addEventListener('click',()=>{
+                el.classList.toggle('on');
+                this.cfg[key]=el.classList.contains('on');
+                if(cb)cb(this.cfg[key]);
+            });
+        };
+        tog('tTrails','enableTrails',v=>{this.particles.forEach(p=>{p.maxT=v?this.cfg.trailLength:0;if(!v)p.trail=[]})});
+        tog('tGlow','enableGlow');
+        tog('tPulse','enablePulse');
+        tog('tVig','enableVignette');
+        tog('tMouseTr','enableMouseTrail');
+        tog('tGrain','enableGrain');
+        tog('tChroma','enableChroma');
+        tog('tBloom','enableBloom');
+        tog('tPPGrav','ppGravity');
+        tog('tElectro','electrostatic');
+
+        // Actions
+        document.getElementById('bExp').addEventListener('click',()=>this.doExplosion());
+        document.getElementById('bVort').addEventListener('click',()=>this.doVortex());
+        document.getElementById('bImp').addEventListener('click',()=>this.doImpulse());
+        document.getElementById('bRand').addEventListener('click',()=>this.randomize());
+        document.getElementById('bSwarm').addEventListener('click',()=>this.swarm());
+        document.getElementById('bScatter').addEventListener('click',()=>this.scatter());
+        document.getElementById('bCopy').addEventListener('click',()=>this.copySettings());
+        document.getElementById('bClear').addEventListener('click',()=>{this.particles=[];this.mt.clear()});
+
+        // Top bar
+        document.getElementById('btnPause').addEventListener('click',()=>{
+            this.anim.running=!this.anim.running;
+            document.getElementById('btnPause').textContent=this.anim.running?'⏸':'▶';
+        });
+        document.getElementById('btnReset').addEventListener('click',()=>this.initP());
+        document.getElementById('btnShot').addEventListener('click',()=>this.screenshot());
+        document.getElementById('btnPresets').addEventListener('click',()=>this.applyPreset());
+
+        // Panel toggle
+        document.getElementById('panelToggle').addEventListener('click',()=>{
+            const p=document.getElementById('rPanel'),b=document.getElementById('panelToggle');
+            p.classList.toggle('closed');
+            b.textContent=p.classList.contains('closed')?'УПРАВЛЕНИЕ':'УПРАВЛЕНИЕ';
+        });
+    }
+
+    bindEv(){
+        let rt;
+        window.addEventListener('resize',()=>{
+            clearTimeout(rt);
+            rt=setTimeout(()=>{
+                this.cfg.width=window.innerWidth;this.cfg.height=window.innerHeight;
+                this.cfg.dpr=Math.min(window.devicePixelRatio||1,2);
+                this.setupCV();this.initStars();
+                this.particles.forEach(p=>{p.bw=this.cfg.width;p.bh=this.cfg.height});
+            },150);
+        });
+
+        const um=e=>{
+            const r=this.cv.getBoundingClientRect();
+            this.mouse.x=e.clientX-r.left;this.mouse.y=e.clientY-r.top;this.mouse.active=true;
+            if(this.cfg.enableMouseTrail)this.mt.add(this.mouse.x,this.mouse.y);
+        };
+        this.cv.addEventListener('mousemove',um);
+        this.cv.addEventListener('touchmove',e=>{e.preventDefault();um(e.touches[0])},{passive:false});
+
+        const dm=()=>{this.mouse.active=false;this.mouse.x=null;this.mouse.y=null};
+        this.cv.addEventListener('mouseleave',dm);
+        this.cv.addEventListener('touchend',dm);
+
+        this.cv.addEventListener('click',e=>{
+            if(!this.anim.running)return;
+            const r=this.cv.getBoundingClientRect();
+            const cx=e.clientX-r.left,cy=e.clientY-r.top;
+            let nr=null,md=Infinity;
+            for(const p of this.particles){
+                const d=Math.hypot(p.pos.x-cx,p.pos.y-cy);
+                if(d<md&&d<100){md=d;nr=p}
+            }
+            if(nr){
+                const np=[];const cnt=6+Math.floor(Math.random()*5);
+                for(let i=0;i<cnt;i++){
+                    const a=Math.PI*2/cnt*i+Math.random()*0.4;
+                    const sp=2+Math.random()*3;
+                    const n=new Particle(nr.pos.x,nr.pos.y,{...this.cfg});
+                    n.vel=new V(Math.cos(a)*sp,Math.sin(a)*sp);
+                    n.r=nr.r*(0.4+Math.random()*0.4);n.hue=nr.hue+(Math.random()-0.5)*20;
+                    np.push(n);
+                }
+                this.particles=this.particles.filter(p=>p!==nr);
+                this.particles.push(...np);
+                this.ripples.push({x:cx,y:cy,r:0,mr:120,a:0.8,s:4});
+            }
+        });
+
+        window.addEventListener('keydown',e=>{
+            if(e.key==='Shift')this.mouse.attractionMode=true;
+            if(e.key===' '){
+                e.preventDefault();
+                const modes=Object.keys(this.modeNames);
+                const idx=modes.indexOf(this.cfg.mode);
+                const next=(idx+1)%modes.length;
+                this.cfg.mode=modes[next];
+                document.querySelectorAll('#gMode .m-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===modes[next]));
+                document.getElementById('sM').textContent=this.modeNames[modes[next]];
+            }
+            if(e.key==='p'||e.key==='P'){this.anim.running=!this.anim.running;document.getElementById('btnPause').textContent=this.anim.running?'⏸':'▶'}
+        });
+        window.addEventListener('keyup',e=>{if(e.key==='Shift')this.mouse.attractionMode=false});
+    }
+
+    doExplosion(){
+        const cx=this.cfg.width/2,cy=this.cfg.height/2;
+        for(let i=0;i<25;i++){
+            const a=Math.PI*2/25*i;const sp=3+Math.random()*4;
+            const n=new Particle(cx+(Math.random()-0.5)*15,cy+(Math.random()-0.5)*15,{...this.cfg});
+            n.vel=new V(Math.cos(a)*sp,Math.sin(a)*sp);
+            n.r=this.cfg.particleSize*(0.5+Math.random());
+            this.particles.push(n);
+        }
+        this.ripples.push({x:cx,y:cy,r:0,mr:200,a:0.9,s:5});
+    }
+
+    doVortex(){
+        const cx=this.cfg.width/2,cy=this.cfg.height/2;
+        for(const p of this.particles){
+            const tc=new V(cx-p.pos.x,cy-p.pos.y);const d=tc.len();
+            if(d>5){const perp=new V(-tc.y,tc.x).norm();p.vel.add(perp.mul(3))}
+        }
+    }
+
+    doImpulse(){
+        for(const p of this.particles){
+            p.vel.add(new V((Math.random()-0.5)*8,(Math.random()-0.5)*8));
+        }
+    }
+
+    randomize(){
+        this.particles.forEach(p=>{
+            p.hue=Math.random()*360;p.sat=50+Math.random()*50;
+            p.lit=40+Math.random()*30;p.charge=Math.random()*2-1;
+            p.mass=0.5+Math.random()*1.5;p.spin=(Math.random()-0.5)*0.08;
+        });
+    }
+
+    swarm(){
+        const cx=this.cfg.width/2,cy=this.cfg.height/2;
+        for(const p of this.particles){
+            const tc=new V(cx+(Math.random()-0.5)*100-p.pos.x,cy+(Math.random()-0.5)*100-p.pos.y);
+            p.vel.add(tc.norm().mul(3));
+        }
+    }
+
+    scatter(){
+        for(const p of this.particles){
+            p.vel.add(new V((Math.random()-0.5)*12,(Math.random()-0.5)*12));
+        }
+    }
+
+    copySettings(){
+        const c={...this.cfg};delete c.dpr;delete c.width;delete c.height;delete c.particles;
+        if(navigator.clipboard)navigator.clipboard.writeText(JSON.stringify(c));
+    }
+
+    screenshot(){
+        const a=document.createElement('a');a.download='neural-'+Date.now()+'.png';
+        a.href=this.cv.toDataURL('image/png');a.click();
+    }
+
+    applyPreset(){
+        const presets={
+            cosmic:{mode:'vortex',type:'cosmic',bg:'stars',connStyle:'arcs',noiseType:'curl',noiseStr:0.5,noiseScale:0.003,glowIntensity:90,enableTrails:true,trailLength:20,baseHue:260},
+            matrix:{mode:'matrix',type:'standard',bg:'dark',connStyle:'energy',baseHue:120,enableGlow:false,enableTrails:true,trailLength:25,gravity:0.3},
+            nebula:{mode:'neural',type:'nebula',bg:'nebula',connStyle:'none',baseHue:200,noiseStr:0.6,noiseType:'simplex',enableGlow:true,glowIntensity:100,glowRadius:8},
+            chaos:{mode:'chaos',type:'plasma',bg:'void',connStyle:'bezier',baseHue:0,hueVar:360,rainbow:true,noiseStr:0.4,noiseType:'perlin',enableTrails:true,trailLength:15,enableBloom:true},
+            fluid:{mode:'fluid',type:'energy',bg:'gradient',connStyle:'chain',baseHue:175,noiseStr:0.35,noiseType:'curl',viscosity:0.15,enableTrails:true,trailLength:18}
+        };
+        const keys=Object.keys(presets);
+        const preset=presets[keys[Math.floor(Math.random()*keys.length)]];
+        Object.assign(this.cfg,preset);
+        this.particles.forEach(p=>{
+            p.hue=this.cfg.baseHue+(this.cfg.rainbow?Math.random()*360:(Math.random()-0.5)*this.cfg.hueVar);
+        });
+        // Update UI
+        document.querySelectorAll('.m-btn').forEach(b=>{
+            if(b.dataset.v===this.cfg.mode)b.classList.add('active');
+            else if(b.parentElement.id==='gMode')b.classList.remove('active');
+            if(b.dataset.v===this.cfg.type)b.classList.add('active');
+            else if(b.parentElement.id==='gType')b.classList.remove('active');
+            if(b.dataset.v===this.cfg.bg)b.classList.add('active');
+            else if(b.parentElement.id==='gBg')b.classList.remove('active');
+            if(b.dataset.v===this.cfg.connStyle)b.classList.add('active');
+            else if(b.parentElement.id==='gConn')b.classList.remove('active');
+        });
+        document.getElementById('sM').textContent=this.modeNames[this.cfg.mode];
+        document.getElementById('sT').textContent=this.typeNames[this.cfg.type];
+    }
+
+    drawBg(time){
+        const w=this.cfg.width,h=this.cfg.height;const c=this.cx;
+        switch(this.cfg.bg){
+            case 'dark':c.fillStyle='#020206';c.fillRect(0,0,w,h);break;
+            case 'gradient':{
+                const g=c.createLinearGradient(0,0,w,h);
+                g.addColorStop(0,'#0a0a1a');g.addColorStop(0.5,'#050510');g.addColorStop(1,'#0a0020');
+                c.fillStyle=g;c.fillRect(0,0,w,h);break;
+            }
+            case 'nebula':
+                c.fillStyle='#020206';c.fillRect(0,0,w,h);
+                const ng=c.createRadialGradient(w*0.3,h*0.4,0,w*0.5,h*0.5,w*0.7);
+                ng.addColorStop(0,`hsla(${this.cfg.baseHue+30},60%,30%,0.07)`);
+                ng.addColorStop(0.5,`hsla(${this.cfg.baseHue+120},40%,20%,0.04)`);
+                ng.addColorStop(1,'transparent');c.fillStyle=ng;c.fillRect(0,0,w,h);break;
+            case 'grid':
+                c.fillStyle='#020206';c.fillRect(0,0,w,h);
+                c.strokeStyle='rgba(255,255,255,0.025)';c.lineWidth=0.5;
+                for(let x=0;x<w;x+=40){c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke()}
+                for(let y=0;y<h;y+=40){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke()}
+                break;
+            case 'stars':
+                c.fillStyle='#020206';c.fillRect(0,0,w,h);
+                for(const s of this.bgStars){
+                    const f=0.7+Math.sin(time*s.s+this.bgStars.indexOf(s))*0.3;
+                    c.beginPath();c.arc(s.x,s.y,s.r,0,Math.PI*2);
+                    c.fillStyle=`rgba(255,255,255,${s.a*f})`;c.fill();
+                }break;
+            case 'void':c.fillStyle='#000';c.fillRect(0,0,w,h);break;
+            case 'aurora':{
+                c.fillStyle='#020206';c.fillRect(0,0,w,h);
+                for(let i=0;i<5;i++){
+                    const ag=c.createLinearGradient(0,h*(0.3+i*0.1),w,h*(0.5+i*0.1));
+                    const hue=this.cfg.baseHue+i*30;
+                    ag.addColorStop(0,`hsla(${hue},70%,50%,0.03)`);
+                    ag.addColorStop(0.5,`hsla(${hue+30},60%,40%,0.02)`);
+                    ag.addColorStop(1,'transparent');
+                    c.fillStyle=ag;c.fillRect(0,0,w,h);
+                }break;
+            }
+            case 'noise':
+                c.fillStyle='#020206';c.fillRect(0,0,w,h);
+                break;
+            case 'circuit':{
+                c.fillStyle='#020206';c.fillRect(0,0,w,h);
+                c.strokeStyle='rgba(0,245,212,0.03)';c.lineWidth=1;
+                const gs=60;
+                for(let x=0;x<w;x+=gs){c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke()}
+                for(let y=0;y<h;y+=gs){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke()}
+                // Nodes
+                for(let x=0;x<w;x+=gs){
+                    for(let y=0;y<h;y+=gs){
+                        if(Math.random()<0.3){
+                            c.beginPath();c.arc(x+Math.random()*gs,y+Math.random()*gs,1,0,Math.PI*2);
+                            c.fillStyle='rgba(0,245,212,0.08)';c.fill();
+                        }
+                    }
+                }
+                break;
+            }
+        }
+
+        // Noise background
+        if(this.cfg.bg==='noise'){
+            const imgData=c.createImageData(w,h);
+            const intensity=this.cfg.grainInt/100*255;
+            for(let i=0;i<imgData.data.length;i+=4){
+                const v=Math.random()*intensity;
+                imgData.data[i]=v;imgData.data[i+1]=v;imgData.data[i+2]=v;imgData.data[i+3]=255;
+            }
+            // Don't put imageData every frame for performance, skip for now
+        }
+
+        // Vignette
+        if(this.cfg.enableVignette){
+            const vs=this.cfg.vignetteStr/100;
+            const vg=c.createRadialGradient(w/2,h/2,Math.min(w,h)*0.2,w/2,h/2,Math.max(w,h)*0.75);
+            vg.addColorStop(0,'transparent');vg.addColorStop(1,`rgba(0,0,0,${vs*0.6})`);
+            c.fillStyle=vg;c.fillRect(0,0,w,h);
+        }
+    }
+
+    drawRipples(){
+        const c=this.cx;
+        for(let i=this.ripples.length-1;i>=0;i--){
+            const r=this.ripples[i];r.r+=r.s;r.a*=0.93;
+            if(r.a<0.03||r.r>r.mr){this.ripples.splice(i,1);continue}
+            c.beginPath();c.arc(r.x,r.y,r.r,0,Math.PI*2);
+            c.strokeStyle=`hsla(${this.cfg.baseHue},100%,70%,${r.a})`;c.lineWidth=2;c.stroke();
+        }
+    }
+
+    drawInteractionRadius(){
+        if(!this.mouse.active)return;
+        const c=this.cx;const ir=this.cfg.interactRadius;
+        c.beginPath();c.arc(this.mouse.x,this.mouse.y,ir,0,Math.PI*2);
+        c.strokeStyle=`hsla(${this.cfg.baseHue},70%,60%,0.08)`;c.lineWidth=1;c.setLineDash([3,5]);c.stroke();c.setLineDash([]);
+    }
+
+    applyInterParticleForces(){
+        const cfg=this.cfg;
+        const particles=this.particles;
+        const len=particles.length;
+
+        // PP Gravity
+        if(cfg.ppGravity&&cfg.ppGravStr>0){
+            const minD=cfg.ppGravMin;const str=cfg.ppGravStr;
+            for(let i=0;i<len;i++){
+                for(let j=i+1;j<len;j++){
+                    const dx=particles[j].pos.x-particles[i].pos.x;
+                    const dy=particles[j].pos.y-particles[i].pos.y;
+                    const dSq=dx*dx+dy*dy;
+                    if(dSq<minD*minD)continue;
+                    const d=Math.sqrt(dSq);
+                    const f=str*0.01/(d*0.1+1);
+                    const fx=dx/d*f,fy=dy/d*f;
+                    particles[i].vel.add(new V(fx,fy));
+                    particles[j].vel.sub(new V(fx,fy));
+                }
+            }
+        }
+
+        // Electrostatic
+        if(cfg.electrostatic&&cfg.elecStr>0){
+            const str=cfg.elecStr;
+            for(let i=0;i<len;i++){
+                for(let j=i+1;j<len;j++){
+                    const dx=particles[j].pos.x-particles[i].pos.x;
+                    const dy=particles[j].pos.y-particles[i].pos.y;
+                    const dSq=dx*dx+dy*dy;
+                    if(dSq<400)continue;
+                    const d=Math.sqrt(dSq);
+                    const chargeProd=particles[i].charge*particles[j].charge;
+                    const f=str*chargeProd*0.005/(d*0.05+1);
+                    const fx=dx/d*f,fy=dy/d*f;
+                    particles[i].vel.sub(new V(fx,fy));
+                    particles[j].vel.add(new V(fx,fy));
+                }
+            }
+        }
+    }
+
+    applyChromaticAberration(){
+        if(!this.cfg.enableChroma)return;
+        const c=this.cx;
+        const w=this.cfg.width,h=this.cfg.height;
+        const str=this.cfg.chromaStr;
+
+        // Simple chromatic aberration effect - draw particles again with offset
+        // This is done by modifying the composite operation
+        c.globalCompositeOperation='screen';
+        c.globalAlpha=0.3;
+        for(const p of this.particles){
+            if(p.r<1)continue;
+            c.beginPath();
+            c.arc(p.pos.x+str,p.pos.y,p.r*0.5,0,Math.PI*2);
+            c.fillStyle=`hsla(${p.hue+30},80%,60%,${p.alpha*0.3})`;
+            c.fill();
+            c.beginPath();
+            c.arc(p.pos.x-str,p.pos.y,p.r*0.5,0,Math.PI*2);
+            c.fillStyle=`hsla(${p.hue-30},80%,60%,${p.alpha*0.3})`;
+            c.fill();
+        }
+        c.globalAlpha=1;
+        c.globalCompositeOperation='source-over';
+    }
+
+    applyBloom(){
+        if(!this.cfg.enableBloom)return;
+        // Simple bloom: draw canvas with blur and additive blend
+        const c=this.cx;
+        const r=this.cfg.bloomRad;
+        c.save();
+        c.filter=`blur(${r}px)`;
+        c.globalCompositeOperation='lighter';
+        c.globalAlpha=0.15;
+        c.drawImage(this.cv,0,0);
+        c.globalAlpha=1;
+        c.filter='none';
+        c.restore();
+    }
+
+    applyGrain(){
+        if(!this.cfg.enableGrain)return;
+        const c=this.cx;
+        const w=this.cfg.width,h=this.cfg.height;
+        const intensity=this.cfg.grainInt/100;
+
+        // Generate noise overlay
+        const imageData=c.getImageData(0,0,Math.floor(w),Math.floor(h));
+        const data=imageData.data;
+        for(let i=0;i<data.length;i+=4){
+            const noise=(Math.random()-0.5)*intensity*50;
+            data[i]+=noise;data[i+1]+=noise;data[i+2]+=noise;
+        }
+        c.putImageData(imageData,0,0);
+    }
+
+    loop(time=0){
+        if(!this.anim.running){requestAnimationFrame(t=>this.loop(t));return}
+
+        this.anim.fc++;
+        if(time-this.anim.ft>=500){
+            this.anim.fps=Math.round(this.anim.fc*1000/(time-this.anim.ft));
+            this.anim.fc=0;this.anim.ft=time;
+        }
+
+        const dt=this.cfg.timeScale;
+        this.drawBg(time);
+
+        // Inter-particle forces (throttled)
+        if(time%3<1){
+            this.applyInterParticleForces();
+        }
+
+        // Update particles
+        for(const p of this.particles){
+            if(p.life!==undefined&&p.life!==null){
+                p.update(this.mouse,this.cfg,time,this.noise,dt);
+            }else{
+                p.update(this.mouse,this.cfg,time,this.noise,dt);
+            }
+        }
+
+        // Remove dead spark particles
+        if(this.cfg.type==='spark'){
+            this.particles=this.particles.filter(p=>p.life>0);
+        }
+
+        // Mouse trail
+        if(this.cfg.enableMouseTrail)this.mt.draw(this.cx,this.cfg.baseHue);
+
+        // Draw connections
+        this.cm.setDist(this.cfg.connDist);
+        this.connCount=this.cm.draw(this.cx,this.particles,this.cfg,time);
+
+        // Draw particles with blend mode
+        this.cx.globalCompositeOperation=this.cfg.blendMode;
+        for(const p of this.particles){
+            p.draw(this.cx,this.cfg);
+        }
+        this.cx.globalCompositeOperation='source-over';
+
+        // Post-processing
+        this.drawRipples();
+        this.drawInteractionRadius();
+        this.applyChromaticAberration();
+        this.applyBloom();
+        this.applyGrain();
+
+        // Stats
+        document.getElementById('sP').textContent=this.particles.length;
+        document.getElementById('sC').textContent=this.connCount;
+        document.getElementById('sF').textContent=this.anim.fps;
+
+        requestAnimationFrame(t=>this.loop(t));
+    }
+}
+
+/* =============== INIT =============== */
+document.addEventListener('DOMContentLoaded',()=>{
+    if(document.getElementById('c')){window._scene=new Scene()}
+});
+</script>
+</body>
+</html>
+
